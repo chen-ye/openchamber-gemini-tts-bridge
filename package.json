@@ -1,0 +1,46 @@
+{
+  "name": "gemini-tts-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "bunx openchamber-guest-bundle panel/main.ts panel/main.js && bunx openchamber-guest-bundle --node service/main.ts service/main.js",
+    "check": "bunx openchamber-guest-check"
+  },
+  "openchamber": {
+    "apiVersion": 1,
+    "engines": {
+      "openchamber": ">=2.7.0"
+    },
+    "id": "gemini-tts-bridge",
+    "name": "Gemini TTS Bridge",
+    "icon": "volume-up",
+    "contributes": {
+      "panel": {
+        "id": "gemini-voices",
+        "name": "Gemini Voices",
+        "icon": "volume-up",
+        "entry": "panel/index.html"
+      },
+      "service": {
+        "entry": "service/main.js",
+        "runtime": "host",
+        "keepRunning": true
+      },
+      "statusSection": {
+        "source": {
+          "path": "/status",
+          "interval": 5000
+        },
+        "title": "Gemini TTS"
+      }
+    }
+  },
+  "dependencies": {
+    "@openchamber/sdk": "2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  }
+}

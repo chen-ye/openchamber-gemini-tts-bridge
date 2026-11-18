@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gemini Voices</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: var(--oc-font, system-ui, -apple-system, sans-serif);
+      color: var(--oc-fg, CanvasText);
+      background: var(--oc-bg, Canvas);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--oc-bg, transparent);
+      color: var(--oc-fg, CanvasText);
+      font-family: var(--oc-font, system-ui, -apple-system, sans-serif);
+      font-size: 13px;
+      line-height: 1.4;
+      padding: 12px;
+    }
+    button,
+    input,
+    select,
+    textarea {
+      font-family: inherit;
+    }
+    :where(button, input, select, textarea):focus-visible {
+      outline: 2px solid var(--oc-focus, var(--oc-primary, Highlight));
+      outline-offset: 1px;
+    }
+    .panel-root {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .card {
+      background: var(--oc-elevated, color-mix(in srgb, CanvasText 4%, Canvas));
+      color: var(--oc-elevated-fg, var(--oc-fg, CanvasText));
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 16%, transparent));
+      border-radius: var(--oc-radius, 8px);
+      padding: 12px;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--oc-muted, GrayText);
+      margin-bottom: 8px;
+    }
+    .text-area {
+      width: 100%;
+      height: 60px;
+      background: var(--oc-bg, Field);
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 20%, transparent));
+      border-radius: calc(var(--oc-radius, 8px) - 2px);
+      color: var(--oc-fg, FieldText);
+      padding: 8px;
+      font-size: 13px;
+      resize: vertical;
+    }
+    .text-area::placeholder,
+    .search-box::placeholder {
+      color: var(--oc-muted, GrayText);
+    }
+    .text-area:focus {
+      outline: none;
+      border-color: var(--oc-focus, var(--oc-primary, Highlight));
+    }
+    .presets {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .preset-chip {
+      background: var(--oc-muted-surface, color-mix(in srgb, CanvasText 6%, transparent));
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 16%, transparent));
+      border-radius: 12px;
+      padding: 3px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      color: var(--oc-muted, GrayText);
+      transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .preset-chip:hover {
+      background: var(--oc-hover, color-mix(in srgb, CanvasText 10%, transparent));
+      color: var(--oc-fg, CanvasText);
+    }
+    .toolbar-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .nav-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 16%, transparent));
+      gap: 16px;
+      margin-bottom: 4px;
+    }
+    .nav-tab {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 6px 4px 10px 4px;
+      color: var(--oc-muted, GrayText);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.15s ease, border-color 0.15s ease;
+    }
+    .nav-tab:hover {
+      color: var(--oc-fg, CanvasText);
+    }
+    .nav-tab.active {
+      color: var(--oc-primary-text, var(--oc-primary, #2563eb));
+      border-bottom-color: var(--oc-primary, #2563eb);
+      font-weight: 600;
+    }
+    .nav-badge {
+      background: var(--oc-muted-surface, color-mix(in srgb, CanvasText 7%, transparent));
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 16%, transparent));
+      border-radius: 10px;
+      padding: 1px 6px;
+      font-size: 10px;
+      color: var(--oc-muted, GrayText);
+    }
+    .doc-link-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: color-mix(in srgb, var(--oc-info, var(--oc-primary, #2563eb)) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--oc-info, var(--oc-primary, #2563eb)) 24%, transparent);
+      border-radius: calc(var(--oc-radius, 8px) - 2px);
+      padding: 8px 12px;
+      font-size: 11px;
+      color: var(--oc-fg, CanvasText);
+    }
+    .doc-link-banner a {
+      color: var(--oc-primary-text, var(--oc-primary, #2563eb));
+      text-decoration: none;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .doc-link-banner a:hover {
+      text-decoration: underline;
+    }
+    .facet-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      background: var(--oc-elevated, color-mix(in srgb, CanvasText 4%, Canvas));
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 16%, transparent));
+      border-radius: calc(var(--oc-radius, 8px) - 2px);
+      padding: 8px;
+    }
+    .facet-select {
+      background: var(--oc-bg, Field);
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 20%, transparent));
+      color: var(--oc-fg, FieldText);
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-size: 11px;
+      max-width: 220px;
+    }
+    .copy-btn {
+      background: var(--oc-muted-surface, color-mix(in srgb, CanvasText 6%, transparent));
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 16%, transparent));
+      color: var(--oc-muted, GrayText);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    .copy-btn:hover {
+      background: var(--oc-hover, color-mix(in srgb, CanvasText 10%, transparent));
+      color: var(--oc-fg, CanvasText);
+    }
+    .tag-pill {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--oc-muted-surface, color-mix(in srgb, CanvasText 6%, transparent));
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 16%, transparent));
+      color: var(--oc-muted, GrayText);
+    }
+    .tag-accent {
+      border-color: color-mix(in srgb, var(--oc-primary, #4f46e5) 28%, transparent);
+      color: var(--oc-primary-text, var(--oc-primary, #4338ca));
+      background: color-mix(in srgb, var(--oc-primary, #4f46e5) 10%, transparent);
+    }
+    .tag-persona {
+      border-color: color-mix(in srgb, var(--oc-success, #059669) 28%, transparent);
+      color: var(--oc-success-text, var(--oc-success, #047857));
+      background: color-mix(in srgb, var(--oc-success, #059669) 10%, transparent);
+    }
+    .ext-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 8px;
+    }
+    .ext-card {
+      background: var(--oc-elevated, color-mix(in srgb, CanvasText 4%, Canvas));
+      color: var(--oc-elevated-fg, var(--oc-fg, CanvasText));
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 16%, transparent));
+      border-radius: var(--oc-radius, 6px);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+    .ext-card:hover {
+      border-color: var(--oc-focus, var(--oc-primary, Highlight));
+      background-image: linear-gradient(
+        var(--oc-hover, color-mix(in srgb, CanvasText 4%, transparent)),
+        var(--oc-hover, color-mix(in srgb, CanvasText 4%, transparent))
+      );
+    }
+    .ext-card.active-playing {
+      border-color: var(--oc-primary, #2563eb);
+      box-shadow: 0 0 0 1px var(--oc-primary, #2563eb);
+    }
+    .ext-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .ext-title-col {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .ext-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--oc-elevated-fg, var(--oc-fg, CanvasText));
+    }
+    .ext-id {
+      font-family: var(--oc-mono, monospace);
+      font-size: 10px;
+      color: var(--oc-muted, GrayText);
+    }
+    .ext-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .ext-desc {
+      font-size: 11px;
+      color: var(--oc-muted, GrayText);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .ext-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-top: auto;
+      padding-top: 6px;
+      border-top: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 14%, transparent));
+    }
+    .play-all-btn {
+      background: var(--oc-primary, #2563eb);
+      color: var(--oc-primary-fg, #fff);
+      border: none;
+      border-radius: calc(var(--oc-radius, 8px) - 2px);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.15s ease;
+    }
+    .play-all-btn:hover {
+      opacity: 0.9;
+    }
+    .play-all-btn.active-all {
+      background: var(--oc-error, #dc2626);
+      color: #fff;
+    }
+    .queue-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      background: var(--oc-elevated, color-mix(in srgb, CanvasText 4%, Canvas));
+      color: var(--oc-elevated-fg, var(--oc-fg, CanvasText));
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 16%, transparent));
+      border-radius: var(--oc-radius, 6px);
+      padding: 8px 12px;
+    }
+    .announce-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--oc-fg, CanvasText);
+      cursor: pointer;
+      user-select: none;
+    }
+    .announce-toggle input {
+      accent-color: var(--oc-primary, #2563eb);
+      cursor: pointer;
+    }
+    .filter-tabs {
+      display: flex;
+      background: var(--oc-muted-surface, color-mix(in srgb, CanvasText 6%, transparent));
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 16%, transparent));
+      border-radius: calc(var(--oc-radius, 8px) - 2px);
+      padding: 2px;
+      gap: 2px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-radius: calc(var(--oc-radius, 8px) - 4px);
+      padding: 4px 10px;
+      color: var(--oc-muted, GrayText);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    .tab-btn:hover {
+      color: var(--oc-fg, CanvasText);
+    }
+    .tab-btn.active {
+      background: var(--oc-elevated, Canvas);
+      color: var(--oc-elevated-fg, var(--oc-fg, CanvasText));
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+    .speed-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--oc-fg, CanvasText);
+    }
+    .speed-select {
+      background: var(--oc-bg, Field);
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 20%, transparent));
+      color: var(--oc-fg, FieldText);
+      border-radius: calc(var(--oc-radius, 8px) - 2px);
+      padding: 3px 6px;
+      font-size: 12px;
+    }
+    .search-box {
+      flex: 1 1 220px;
+      min-width: 200px;
+      background: var(--oc-elevated, Field);
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 20%, transparent));
+      color: var(--oc-fg, FieldText);
+      border-radius: calc(var(--oc-radius, 8px) - 2px);
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+    .search-box:focus {
+      outline: none;
+      border-color: var(--oc-focus, var(--oc-primary, Highlight));
+    }
+    .voice-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 8px;
+    }
+    .voice-card {
+      background: var(--oc-elevated, color-mix(in srgb, CanvasText 4%, Canvas));
+      color: var(--oc-elevated-fg, var(--oc-fg, CanvasText));
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 16%, transparent));
+      border-radius: var(--oc-radius, 6px);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+    .voice-card:hover {
+      border-color: var(--oc-focus, var(--oc-primary, Highlight));
+      background-image: linear-gradient(
+        var(--oc-hover, color-mix(in srgb, CanvasText 4%, transparent)),
+        var(--oc-hover, color-mix(in srgb, CanvasText 4%, transparent))
+      );
+    }
+    .voice-card.active-playing {
+      border-color: var(--oc-primary, #2563eb);
+      box-shadow: 0 0 0 1px var(--oc-primary, #2563eb);
+    }
+    .voice-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .voice-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .voice-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--oc-elevated-fg, var(--oc-fg, CanvasText));
+    }
+    .badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge-female {
+      background: rgba(219, 39, 119, 0.12);
+      color: #be185d;
+    }
+    .badge-male {
+      background: rgba(37, 99, 235, 0.12);
+      color: #1d4ed8;
+    }
+    .badge-neutral {
+      background: rgba(100, 116, 139, 0.14);
+      color: #475569;
+    }
+    :root[data-oc-theme="dark"] .badge-female {
+      background: rgba(236, 72, 153, 0.18);
+      color: #f472b6;
+    }
+    :root[data-oc-theme="dark"] .badge-male {
+      background: rgba(59, 130, 246, 0.18);
+      color: #60a5fa;
+    }
+    :root[data-oc-theme="dark"] .badge-neutral {
+      background: rgba(148, 163, 184, 0.18);
+      color: #cbd5e1;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-oc-theme="light"]) .badge-female {
+        background: rgba(236, 72, 153, 0.18);
+        color: #f472b6;
+      }
+      :root:not([data-oc-theme="light"]) .badge-male {
+        background: rgba(59, 130, 246, 0.18);
+        color: #60a5fa;
+      }
+      :root:not([data-oc-theme="light"]) .badge-neutral {
+        background: rgba(148, 163, 184, 0.18);
+        color: #cbd5e1;
+      }
+    }
+    .load-more-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 6px 0 2px;
+    }
+    .load-more-btn {
+      background: var(--oc-elevated, color-mix(in srgb, CanvasText 4%, Canvas));
+      border: 1px solid var(--oc-border, color-mix(in srgb, CanvasText 18%, transparent));
+      color: var(--oc-fg, CanvasText);
+      border-radius: calc(var(--oc-radius, 8px) - 2px);
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .load-more-btn:hover {
+      border-color: var(--oc-focus, var(--oc-primary, Highlight));
+      background-image: linear-gradient(
+        var(--oc-hover, color-mix(in srgb, CanvasText 5%, transparent)),
+        var(--oc-hover, color-mix(in srgb, CanvasText 5%, transparent))
+      );
+    }
+    .voice-style {
+      font-size: 11px;
+      color: var(--oc-muted, GrayText);
+    }
+    .play-btn {
+      background: var(--oc-primary, #2563eb);
+      color: var(--oc-primary-fg, #fff);
+      border: none;
+      border-radius: calc(var(--oc-radius, 8px) - 2px);
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: opacity 0.15s ease;
+    }
+    .play-btn:hover {
+      opacity: 0.9;
+    }
+    .play-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .play-btn.playing {
+      background: var(--oc-error, #dc2626);
+      color: #fff;
+    }
+    .status-bar {
+      font-size: 11px;
+      color: var(--oc-muted, GrayText);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="./main.js"></script>
+</body>
+</html>
