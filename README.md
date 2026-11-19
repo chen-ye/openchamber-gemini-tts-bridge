@@ -1,41 +1,12 @@
-# Gemini TTS Bridge
+# Gemini TTS Bridge extension for OpenChamber
 
-OpenAI-compatible speech proxy and voice audition extension for [OpenChamber](https://github.com/btriapitsyn/openchamber) (`@openchamber/sdk`, `apiVersion: 1`, requires OpenChamber `>=2.7.0`).
+OpenAI-compatible text-to-speech proxy and voice audition extension for OpenChamber (requires OpenChamber `>=2.7.0`). Lets OpenChamber use Gemini TTS upstreams (such as LiteLLM) through a local OpenAI-compatible endpoint while providing a **Gemini Voices** panel to browse, filter, and preview voices.
 
-It pairs an OpenAI-compatible `/v1/audio/speech` proxy for Gemini TTS upstreams (such as LiteLLM) with a **Gemini Voices** panel for browsing, filtering, and auditioning voices.
+## Setup
 
-## Features & Surfaces
+### 1. Configure your upstream TTS endpoint and API key
 
-- **Panel (`panel/index.html` → `panel/main.js`, ID `gemini-voices`, title `Gemini Voices`)**:
-  - **Featured Studio Voices**: 30 studio voices with gender filter tabs (`All`, `Female`, `Male`).
-  - **Extended Voice Library**: 2,084 voices (`panel/extended-voices.json`) across 39 locales, paginated 60 per page, with filters for locale, context, voice ID role, gender, and pitch, plus one-click `Copy ID`.
-  - Live search across voice ID, name, style, language, accent, persona, context, pitch, and description (including comma-separated ID queries).
-  - Preview phrase editor with 4 sample presets, playback speed selector (`0.75x`, `1.0x`, `1.25x`, `1.5x`, `2.0x`), single-voice Play/Stop, and sequential **Play All** auditioning with an optional `Announce voice name` toggle.
-- **Work Status (`statusSection`, title `Gemini TTS`)**:
-  - Polls `GET /status` on the host service every 5,000 ms to display configured proxy port and `targetUrl`, request/success/failure counts, config file path, last spoken text/duration, and last error.
-- **Host Service & Speech Proxy (`service/main.js`, `runtime: "host"`, `keepRunning: true`)**:
-  - **OpenChamber Guest Service** (binds to `127.0.0.1:$OPENCHAMBER_SERVICE_PORT` when `OPENCHAMBER_SERVICE_PORT` is set; enforces `Authorization: Bearer $OPENCHAMBER_SERVICE_TOKEN` when `OPENCHAMBER_SERVICE_TOKEN` is set):
-    - `GET /health` — Returns `{ status: "ok", healthy }`.
-    - `GET /status` — Returns Work Status rows.
-    - `GET /v1/audio/voices` and `GET /audio/voices` — Returns the voice catalog (supports `category`, `language` / `language_code`, `gender`, `pitch`, and `search` query params).
-    - `POST /preview` — Synthesizes audio via `${targetUrl}/v1/audio/speech` (default model `google/gemini-3.8-flash-lite-tts`, default voice `Kore`, `response_format: "pcm"`) and returns `{ ok, voice, durationMs, audioBase64, contentType: "audio/wav" }`.
-  - **OpenAI-Compatible Speech Proxy** (binds to `127.0.0.1:<proxyPort>`, default `4005`):
-    - `GET /health` — Returns `{ status, service, proxyPort, targetUrl, configured, configFile }`.
-    - `GET /config` / `POST /config` — Reads or merges updates into the JSON config file.
-    - `GET /v1/audio/voices` and `GET /audio/voices` — Filtered voice listing.
-    - `GET /v1/models` and `GET /models` — Proxies to `${targetUrl}/v1/models` (requires `targetUrl`).
-    - `POST /preview` — Synthesizes a processed WAV preview (requires `targetUrl`).
-    - `POST /v1/audio/speech` and `POST /audio/speech` — Rewrites omitted/`mp3`/`wav` `response_format` to `"pcm"` (preventing LiteLLM from prepending a redundant second WAV header over Google's WAV stream), applies `defaultModel`/`defaultVoice` from config if omitted, and forwards to `${targetUrl}/v1/audio/speech`.
-  - **Audio Post-Processing (`processWavAudio`)**:
-    - Unwraps redundant nested 44-byte `RIFF`/`WAVE` headers and wraps raw PCM in a 24 kHz 16-bit mono WAV header when needed.
-    - Strips appended `C2PA` provenance manifest bytes and updates `RIFF`/`data` chunk sizes.
-    - Applies pure-TypeScript WSOLA (Waveform Similarity Overlap-Add) pitch-preserving time-stretching on 16-bit mono PCM when `0.25 < speed <= 4.0` and `|speed - 1.0| >= 0.02`.
-
-## Configuration & Environment Variables
-
-Configuration is resolved from `$BRIDGE_CONFIG_PATH` (default: `~/.config/openchamber/gemini-tts-bridge.json`) and environment variables. `apiKey` also falls back to `~/.config/openchamber/voice-keys.json` (`openaiCompatible` or `openai`).
-
-Example `gemini-tts-bridge.json`:
+Create `~/.config/openchamber/gemini-tts-bridge.json` (or point `BRIDGE_CONFIG_PATH` to a custom file):
 
 ```json
 {
@@ -47,25 +18,62 @@ Example `gemini-tts-bridge.json`:
 }
 ```
 
-Precedence:
+Configuration values are resolved in the following order:
 
-| Setting | Resolution Order | Default |
-| --- | --- | --- |
+| Option | Resolution order | Default |
+|---|---|---|
 | Config file path | `BRIDGE_CONFIG_PATH` | `~/.config/openchamber/gemini-tts-bridge.json` |
 | `targetUrl` | `config.targetUrl` → `BRIDGE_TARGET_URL` → `LITELLM_BASE_URL` | — |
-| `apiKey` | `config.apiKey` → `BRIDGE_API_KEY` → `LITELLM_API_KEY` → `~/.config/openchamber/voice-keys.json` (`openaiCompatible` / `openai`) | — (incoming `Authorization` header takes precedence on proxy `/v1/audio/speech` & `/v1/models` unless it includes `not-required`) |
+| `apiKey` | `config.apiKey` → `BRIDGE_API_KEY` → `LITELLM_API_KEY` → `~/.config/openchamber/voice-keys.json` (`openaiCompatible` or `openai`) | — |
 | `proxyPort` | `config.proxyPort` → `BRIDGE_PORT` → `GEMINI_TTS_PROXY_PORT` | `4005` |
-| `defaultModel` | `config.defaultModel` | `google/gemini-3.8-flash-lite-tts` (on `/preview`) |
-| `defaultVoice` | `config.defaultVoice` | `Kore` (on `/preview` and `/v1/audio/voices` `default_voice`) |
+| `defaultModel` | `config.defaultModel` | `google/gemini-3.8-flash-lite-tts` (used by panel previews) |
+| `defaultVoice` | `config.defaultVoice` | `Kore` |
 
-When launched by OpenChamber, the host injects `OPENCHAMBER_SERVICE_PORT` and `OPENCHAMBER_SERVICE_TOKEN`.
+On `/v1/audio/speech` and `/v1/models` requests, an incoming `Authorization` header takes precedence over the configured `apiKey` unless it contains `not-required`.
+
+### 2. Add the extension in OpenChamber
+
+1. Build the extension if you have not already (`bun install && bun run build`).
+2. Open **Settings → Extensions** in OpenChamber and add the `gemini-tts-bridge` directory.
+3. Approve and enable the extension so the local speech proxy starts.
+
+### 3. Connect OpenChamber TTS / Voice settings
+
+In OpenChamber's Voice / TTS settings for an OpenAI-compatible provider, point the endpoint URL to `http://127.0.0.1:4005` (or `http://127.0.0.1:<proxyPort>` if you changed `proxyPort`).
+
+The local proxy exposes:
+
+- `POST /v1/audio/speech` (also `POST /audio/speech`) — synthesizes speech via `targetUrl`, automatically requesting clean PCM/WAV audio and applying pitch-preserving playback speed when `speed` is set (`0.25 < speed <= 4.0`).
+- `GET /v1/audio/voices` (also `GET /audio/voices`) — returns the voice list, with optional `category`, `language` / `language_code`, `gender`, `pitch`, and `search` query filters.
+- `GET /v1/models` (also `GET /models`) — forwards model listing requests to `targetUrl`.
+- `GET /health` and `GET /config` / `POST /config` — inspect bridge health or read/update the JSON config file.
+
+## Using Gemini TTS Bridge in OpenChamber
+
+### Gemini Voices panel
+
+Open the **Gemini Voices** panel to audition voices and copy voice IDs into OpenChamber's voice settings:
+
+- **Featured Studio Voices**: Browse the 30 named studio voices (such as `Kore`, `Puck`, `Charon`, `Fenrir`, `Aoede`, `Zephyr`) with `All`, `Female`, and `Male` tabs.
+- **Extended Voice Library**: Browse 2,084 voices across 39 locales (loaded 60 at a time with **Show more**), with filters for locale, context, voice ID role, gender (`Female`, `Male`, `Neutral`), and pitch (`Low`, `Medium`, `High`), plus a **Copy ID** button on each card.
+- **Search**: Filter by name, voice ID, style, language, accent, persona, context, pitch, or description. You can also enter comma-separated voice IDs.
+- **Preview Phrase & Playback Controls**: Edit custom preview text or pick one of the 4 sample presets (`Sample 1`–`Sample 4`), set playback **Speed** (`0.75x`, `1.0x`, `1.25x`, `1.5x`, `2.0x`), play individual voices, or run **Play All** to audition every matching voice in sequence (with an **Announce voice name** toggle).
+
+### Gemini TTS Work Status section
+
+The **Gemini TTS** section in Work Status shows live proxy diagnostics:
+
+- Active proxy port and configured `targetUrl` (or `unconfigured` if `targetUrl` is not set).
+- Request counters (`total`, `ok`, and `failed`).
+- Path to the active config file.
+- Most recently spoken text snippet and synthesis duration (when available), plus the last error message if a request failed.
 
 ## Development
 
 ```bash
 bun install
-bun run build   # Bundle panel/main.js and service/main.js
-bun run check   # Run openchamber-guest-check
+bun run build
+bun run check
 ```
 
 ## License
